@@ -29,6 +29,7 @@ use std::{
 use arrayvec::ArrayVec;
 use foreign_types::ForeignTypeRef as _;
 use parking_lot::Mutex;
+use objc::{class, msg_send, sel, sel_impl};
 
 #[derive(Clone)]
 pub struct Api;
@@ -90,10 +91,14 @@ impl crate::Instance<Api> for Instance {
                 Ok(Surface::from_view(handle.ui_view, None))
             }
             #[cfg(target_os = "macos")]
-            raw_window_handle::RawWindowHandle::AppKit(handle) => Ok(Surface::from_view(
-                handle.ns_view,
-                Some(&self.managed_metal_layer_delegate),
-            )),
+            raw_window_handle::RawWindowHandle::AppKit(handle) => {
+                let ns_window = handle.ns_window as *mut objc::runtime::Object;
+                let ns_view = msg_send![ns_window, contentView];
+                Ok(Surface::from_view(
+                    ns_view,
+                    Some(&self.managed_metal_layer_delegate),
+                ))
+            },
             _ => Err(crate::InstanceError),
         }
     }
